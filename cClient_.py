@@ -48,6 +48,9 @@ class cClient:
         self.list_for_combobox = list()
         self.client = None  # For a cClient instance
 
+        # types of sending
+        self.sendingCode = "SERMS"
+
         #Rooms
         self.num_of_rooms = 0
 
@@ -239,7 +242,7 @@ class cClient:
         import time
         while True:
             if self.connected:
-                time.sleep(10) # Sleeps 10 seconds
+                time.sleep(1000) # Sleeps 10 seconds
                 self.ask_for_clients_list()
             #else:
              #   print("No more listing")
@@ -289,6 +292,9 @@ class cClient:
                             private_room_thread = Thread(target=self.create_private_room_gui, args=(room_id,))
                             private_room_thread.start()
 
+                        elif header == "RESPO":
+                            self.msg_list.insert(tk.END, received_message[:5])
+
                         elif header == "ERROR":
                             print("Error in Server")
 
@@ -322,7 +328,7 @@ class cClient:
             self.disconnect_to_host()
             return
 
-        self.client_socket.send(bytes("SERMS" + msg, encoding="utf-8"))
+        self.client_socket.send(bytes(self.sendingCode + msg, encoding="utf-8"))
         self.my_msg.set("")
 
 

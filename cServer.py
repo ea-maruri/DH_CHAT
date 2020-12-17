@@ -14,6 +14,7 @@ from cServer_Client import cServer_Client
 from cServer_Room import cServer_Room
 from sys import stderr
 from datetime import datetime
+import pyDH
 
 
 class cServer:
@@ -74,6 +75,11 @@ class cServer:
 
         # Temporary socket
         self.temp_socket = None
+
+        # diffie hellman structure
+        self.dHBase = pyDH.DiffieHellman() # prime number and generator
+        self.dHPubKey = self.dHBase.gen_public_key()
+
 
 
     def start_server(self):
@@ -141,6 +147,7 @@ class cServer:
                 print('Error from remote host (disconnected)')
                 recv_data = ""
                 # sock.close()
+            recTemp = ""
 
             if recv_data:
                 if recv_data[:3] != "QqQ":
@@ -224,7 +231,7 @@ class cServer:
                     # Try to make a connection with DNS given a name
                     elif header == "TRYCO":
                         name = recv_data[5:]
-                        HOST = "192.168.203.1"
+                        HOST = '192.168.100.25'
                         PORT = 10001
                         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                             s.connect((HOST, PORT))
@@ -249,26 +256,64 @@ class cServer:
                             self.temp_socket.sendall(bytes('START' + "NEW CONNECT", encoding='utf-8'))
                             received_data = self.temp_socket.recv(1024).decode()  # I receive: bytes("THEIP" + the_ip, encoding="utf-8")
                             print('THE DATA IS', received_data)
+                            self.temp_socket.sendall(bytes('CRCON' + socket.gethostname() + ":" + str(self.PORT), encoding='utf-8'))
+                            received_data = self.temp_socket.recv(1024).decode()  # I receive: bytes("THEIP" + the_ip, encoding="utf-8")
+                            print('THE DATA IS 2', received_data)
+                        except Exception as e:
+                            print(f'Error, {e}')
+                            recv_data = str(e)
+
+                     # "Send a group message" request
+                    elif header == "CRCON":
+                        newConn = recv_data[5:]
+                        HOST = newConn.split(":")[0]
+                        PORT = int(newConn.split(":")[1])
+                        self.temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+                        try:
+                            print('CRCON. Try to connect to', HOST, ':', PORT)
+                            self.temp_socket.connect((HOST, PORT))
+                            self.temp_socket.sendall(bytes('START' + "NEW CONNECT", encoding='utf-8'))
+                            received_data = self.temp_socket.recv(1024).decode()  # I receive: bytes("THEIP" + the_ip, encoding="utf-8")
+                            print('THE DATA IS', received_data)
+                            self.temp_socket.sendall(bytes('RESPO', encoding='utf-8'))
+                            received_data = self.temp_socket.recv(1024).decode()  # I receive: bytes("THEIP" + the_ip, encoding="utf-8")
+                            print('THE DATA IS', received_data)
                         except Exception as e:
                             print('Error')
                             recv_data = 'EROR'
+                        recv_data = ""
 
                     elif header == "SERMS":
                         msg = recv_data[5:]
-                        self.temp_socket.send(bytes("SERRV" + msg, encoding='utf-8'))
+                        try:
+                            self.temp_socket.send(bytes("SERRV" + msg, encoding='utf-8'))
+                        except Exception as e:
+                            data.outb += bytes("Unable to send message", encoding='utf-8')
                         print('Server sends', msg)
                         recv_data = ""
 
                     elif header == "SERRV":
-                        msg = recv_data[5:]
-                        data.outb += bytes("MSG: " + msg, encoding="utf-8")
+                        self.broadcast("RESPO" + recv_data[5:], self.list_of_server_clients)
                         recv_data = ""  # Clear recv_data
+
+                    # elif header == "SENSR":
+                    #     lenClients = len(self.list_of_server_clients)
+                    #     print('lenClients ', lenClients)
+                    #     self.broadcast("RESPO" + recv_data[5:], self.list_of_server_clients)
+                    #     recv_data = ""  # Clear recv_data
+
+                    # elif header == "RESPO":
+                    #     lenClients = len(self.list_of_server_clients)
+                    #     print('lenClients ', lenClients)
+                    #     self.broadcast("RESPO" + recv_data[5:], self.list_of_server_clients)
+                    #     recv_data = ""  # Clear recv_data
 
 
                     # Another "unsupported" Header
                     else:
                         print("'" + recv_data + "' is NOT a correct primitive")
-                        data.outb += bytes("ERROR")
+                        data.outb += bytes("ERROR", encoding="utf-8")
                         recv_data = ""
 
                     # To return to client
@@ -354,7 +399,12 @@ class cServer:
     def broadcast(self, msg, list_of_clients):
         """For each client in (cServer_Client(name, socket)) in the list, send the message 'msg'"""
         for client in list_of_clients:
-            client.get_socket().send(bytes(msg, encoding='utf8'))
+            try:
+                client.get_socket().send(bytes(msg, encoding='utf8'))
+            except Exception as e:
+                print(str(e), file=stderr)
+                print("Error, can't send message to .\n\t" + str(client.get_socket()), file=stderr)
+
 
 
     def __str__(self):
