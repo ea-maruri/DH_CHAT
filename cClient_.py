@@ -59,7 +59,7 @@ class cClient:
         ##########################################################################
         # FOR GUI
         self.top = tk.Tk()
-        self.top.geometry("490x600")
+        self.top.geometry("600x600")
         self.top.title("AR-Chatter")
         self.top.resizable(False, False)
         self.top.protocol("WM_DELETE_WINDOW", self.gui_on_closing)
@@ -77,7 +77,8 @@ class cClient:
         self.message_entry = tk.Entry(self.top, width=48, textvariable=self.my_msg)  # Entry
         self.message_entry.grid(row=1, column=1, padx=(10, 10), pady=(10,10), columnspan=2)
         self.message_entry["state"] = tk.DISABLED
-        self.btn_send_message = tk.Button(self.top, text="Send", command=self.send_message) # Send Button
+        # self.btn_send_message = tk.Button(self.top, text="Send", command=self.send_message) # Send Button
+        self.btn_send_message = tk.Button(self.top, text="Send from Server", command=self.send_msg_server)  # Send Button
         self.btn_send_message.grid(row=1, column=3)
         self.btn_send_message["state"] = tk.DISABLED
 
@@ -120,7 +121,7 @@ class cClient:
         #Listing and private room
         self.btn_list_clients = tk.Button(self.top, text="List", command=self.ask_for_clients_list)
         self.btn_list_clients.grid(row=8, column=0, padx=(5,5))  # Disconnect Button
-        self.combo_box_clients = ttk.Combobox(self.top, width=30)
+        self.combo_box_clients = ttk.Combobox(self.top, width=40)
         self.combo_box_clients.grid(row=8, column=1, columnspan=2)  # Combobox
         self.btn_private_room = tk.Button(self.top, text="Create Private Room", command=self.private_connection)
         self.btn_private_room.grid(row=8, column=3, padx=(5,5), pady=(5,5))
@@ -128,6 +129,7 @@ class cClient:
         self.btn_list_clients["state"] = tk.DISABLED
         self.combo_box_clients["state"] = tk.DISABLED
         self.btn_private_room["state"] = tk.DISABLED
+
         # Separator
         self.listing_separator = ttk.Separator(self.top).grid(row=9, column=0, columnspan=4, sticky="ew", padx=(5,5))
 
@@ -135,7 +137,7 @@ class cClient:
         self.btn_make_room = tk.Button(self.top, text="Room")
         self.btn_talk_with = tk.Button(self.top, text="Talk with...")
 
-        self.btn_connect_to_ip = tk.Button(self.top, text="Connect to registered IP", command=self.try_connection)  # Send Button
+        self.btn_connect_to_ip = tk.Button(self.top, text="Connect to registered IP", command=self.connect_to_ip)  # Send Button
         self.btn_connect_to_ip.grid(row=10, column=0)
         self.btn_connect_to_ip["state"] = tk.DISABLED
 
@@ -189,11 +191,11 @@ class cClient:
         self.btn_list_clients["state"] = tk.NORMAL
         self.combo_box_clients["state"] = tk.NORMAL
         self.btn_private_room["state"] = tk.NORMAL
+        self.btn_connect_to_ip["state"] = tk.NORMAL
         self.host_entry["state"] = tk.DISABLED
         self.port_entry["state"] = tk.DISABLED
         self.name_entry["state"] = tk.DISABLED
         self.btn_connect["state"] = tk.DISABLED
-        self.btn_connect_to_ip["state"] = tk.DISABLED
 
 
     def start_receiving_thread(self):
@@ -224,11 +226,11 @@ class cClient:
         self.btn_list_clients["state"] = tk.DISABLED
         self.combo_box_clients["state"] = tk.DISABLED
         self.btn_private_room["state"] = tk.DISABLED
+        self.btn_connect_to_ip["state"] = tk.DISABLED
         self.host_entry["state"] = tk.NORMAL
         self.port_entry["state"] = tk.NORMAL
         self.name_entry["state"] = tk.NORMAL
         self.btn_connect["state"] = tk.NORMAL
-        self.btn_connect_to_ip["state"] = tk.NORMAL
 
         self.top.title("AR-Chatter")
         
@@ -312,6 +314,16 @@ class cClient:
 
         self.client_socket.send(bytes("TRYCO" + name, encoding="utf-8"))
         self.name_to_connect.set("")
+
+    def send_msg_server(self):
+        msg = self.my_msg.get().strip()
+
+        if msg == "QqQ":
+            self.disconnect_to_host()
+            return
+
+        self.client_socket.send(bytes("SERMS" + msg, encoding="utf-8"))
+        self.my_msg.set("")
 
 
     def send_message(self):

@@ -72,6 +72,9 @@ class cServer:
         # Requested IP
         self.requested_ip = ''
 
+        # Temporary socket
+        self.temp_socket = None
+
 
     def start_server(self):
         """Binding and listening for the socket server"""
@@ -132,7 +135,12 @@ class cServer:
 
         # If client available to read
         if mask & selectors.EVENT_READ:
-            recv_data = sock.recv(1024).decode()  # Decoding Bytes Received from socket
+            try:
+                recv_data = sock.recv(1024).decode()  # Decoding Bytes Received from socket
+            except Exception as e:
+                print('Error from remote host (disconnected)')
+                recv_data = ""
+                # sock.close()
 
             if recv_data:
                 if recv_data[:3] != "QqQ":
@@ -227,17 +235,34 @@ class cServer:
                             if ip_data[:5] == "THEIP":
                                 self.requested_ip = ip_data[5:]
 
-                        recv_data = 'OBTAINED: ' + ip_data
+                        recv_data = 'OBTAINED: ' + ip_data[5:]
                         print('Received', repr(ip_data))
 
                     elif header == "CONIP":
                         HOST = self.requested_ip.split(":")[0]
                         PORT = int(self.requested_ip.split(":")[1])
-                        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                            s.connect((HOST, PORT))
-                            s.sendall(bytes('START' + "NEW CONNECT", encoding='utf-8'))
-                            received_data = s.recv(1024).decode()  # I receive: bytes("THEIP" + the_ip, encoding="utf-8")
+                        self.temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+                        try:
+                            print('CONIP. Try to connect to', HOST, ':', PORT)
+                            self.temp_socket.connect((HOST, PORT))
+                            self.temp_socket.sendall(bytes('START' + "NEW CONNECT", encoding='utf-8'))
+                            received_data = self.temp_socket.recv(1024).decode()  # I receive: bytes("THEIP" + the_ip, encoding="utf-8")
                             print('THE DATA IS', received_data)
+                        except Exception as e:
+                            print('Error')
+                            recv_data = 'EROR'
+
+                    elif header == "SERMS":
+                        msg = recv_data[5:]
+                        self.temp_socket.send(bytes("SERRV" + msg, encoding='utf-8'))
+                        print('Server sends', msg)
+                        recv_data = ""
+
+                    elif header == "SERRV":
+                        msg = recv_data[5:]
+                        data.outb += bytes("MSG: " + msg, encoding="utf-8")
+                        recv_data = ""  # Clear recv_data
 
 
                     # Another "unsupported" Header
@@ -278,7 +303,10 @@ class cServer:
         for client in self.list_of_server_clients:
             if client.get_name() == name:
                 print("Deleting to", name)
-                del self.list_of_server_clients[self.list_of_server_clients.index(client)]
+                try:
+                    del self.list_of_server_clients[self.list_of_server_clients.index(client)]
+                except Exception as e:
+                    print('Error trying to remove', client)
 
 
     def get_client_in_server(self, name:str):
@@ -338,7 +366,7 @@ class cServer:
 
 if __name__ == "__main__":
     IP = socket.gethostname()   # "192.168.x.x"
-    PORT = "9091"
+    PORT = "10004"
     server = cServer(IP, PORT)  # Instance of cServer(host: str, port: int)
 
     # Initializes the server: bind and listen and returns True if all is OK

@@ -78,7 +78,10 @@ class cServer:
         return configDF.set_index('Nombre').to_dict()['IP']
 
     def get_IP_given_a_name(self, name: str):
-        return self.configDF[name]
+        try:
+            return self.configDF[name]
+        except Exception as e:
+            return "NO ip " + str(e)
 
     def start_server(self):
         """Binding and listening for the socket server"""
@@ -246,7 +249,7 @@ class cServer:
 
 if __name__ == "__main__":
     IP = socket.gethostname()   # "192.168.x.x"
-    PORT = "10001"
+    PORT = 10001
     server = cServer(IP, PORT)  # Instance of cServer(host: str, port: int)
 
     # Initializes the server: bind and listen and returns True if all is OK
