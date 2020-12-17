@@ -15,6 +15,7 @@ from cServer_Room import cServer_Room
 from sys import stderr
 from datetime import datetime
 import pyDH
+from des import DesKey
 
 
 class cServer:
@@ -77,8 +78,11 @@ class cServer:
         self.temp_socket = None
 
         # diffie hellman structure
-        self.dHBase = pyDH.DiffieHellman() # prime number and generator
+        self.dHBase = pyDH.DiffieHellman(group=5) # prime number and generator
         self.dHPubKey = self.dHBase.gen_public_key()
+        self.dHGenSecretKey = None
+        # des key
+        # self.desK = None
 
 
 
@@ -258,7 +262,11 @@ class cServer:
                             print('THE DATA IS', received_data)
                             self.temp_socket.sendall(bytes('CRCON' + socket.gethostname() + ":" + str(self.PORT), encoding='utf-8'))
                             received_data = self.temp_socket.recv(1024).decode()  # I receive: bytes("THEIP" + the_ip, encoding="utf-8")
-                            print('THE DATA IS 2', received_data)
+                            print('THE DATA IS 1', received_data)
+                            print('str(self.dHPubKey)', len(str(self.dHPubKey).encode("utf8")))
+                            # self.temp_socket.sendall(bytes('DHKEY' + str(self.dHPubKey), encoding='utf-8'))
+                            # received_data = self.temp_socket.recv(1024).decode()  # I receive: bytes("THEIP" + the_ip, encoding="utf-8")
+                            # print('THE DATA IS 2', received_data)
                         except Exception as e:
                             print(f'Error, {e}')
                             recv_data = str(e)
@@ -279,36 +287,47 @@ class cServer:
                             self.temp_socket.sendall(bytes('RESPO', encoding='utf-8'))
                             received_data = self.temp_socket.recv(1024).decode()  # I receive: bytes("THEIP" + the_ip, encoding="utf-8")
                             print('THE DATA IS', received_data)
+                            # self.temp_socket.sendall(bytes('DHKEY' + str(self.dHPubKey), encoding='utf-8'))
+                            # received_data = self.temp_socket.recv(1024).decode()  # I receive: bytes("THEIP" + the_ip, encoding="utf-8")
+                            # print('THE DATA IS 2', received_data)
                         except Exception as e:
                             print('Error')
-                            recv_data = 'EROR'
+                            recv_data = 'ERROR'
                         recv_data = ""
 
+                    # manage diffie hellman
+                    elif header == 'KEYIN':
+                        self.temp_socket.sendall(bytes('KEYGE' + str(self.dHPubKey), encoding='utf-8'))
+                        received_data = self.temp_socket.recv(1024).decode()
+                        print('received_data key in', received_data)
+                        data.outb += bytes("Secret key succesful!!", encoding="utf-8")
+                        recv_data = ""
+
+                    # Generate shared key
+                    elif header == 'KEYGE':
+                        dhPubKeyB = recv_data[5:]
+
+                        self.dHGenSecretKey = self.dHBase.gen_shared_key(int(dhPubKeyB))[:24]
+                        # self.desK = DesKey(bytes(self.dHGenSecretKey, encoding='utf-8'))
+                        print('difkey', self.dHGenSecretKey)
+                        data.outb += bytes("Secret key succesful!", encoding="utf-8")
+                        recv_data = ""
+
+                    # send msgs between servers
                     elif header == "SERMS":
                         msg = recv_data[5:]
                         try:
-                            self.temp_socket.send(bytes("SERRV" + msg, encoding='utf-8'))
+                            # apply des for encription, use diffie hellman key
+                            self.temp_socket.send(bytes("SERRV"+msg, encoding='utf-8'))
+
                         except Exception as e:
-                            data.outb += bytes("Unable to send message", encoding='utf-8')
-                        print('Server sends', msg)
+                            data.outb += bytes(f"Unable to send message {e}", encoding='utf-8')
                         recv_data = ""
 
+                    # receive msgs between servers
                     elif header == "SERRV":
                         self.broadcast("RESPO" + recv_data[5:], self.list_of_server_clients)
                         recv_data = ""  # Clear recv_data
-
-                    # elif header == "SENSR":
-                    #     lenClients = len(self.list_of_server_clients)
-                    #     print('lenClients ', lenClients)
-                    #     self.broadcast("RESPO" + recv_data[5:], self.list_of_server_clients)
-                    #     recv_data = ""  # Clear recv_data
-
-                    # elif header == "RESPO":
-                    #     lenClients = len(self.list_of_server_clients)
-                    #     print('lenClients ', lenClients)
-                    #     self.broadcast("RESPO" + recv_data[5:], self.list_of_server_clients)
-                    #     recv_data = ""  # Clear recv_data
-
 
                     # Another "unsupported" Header
                     else:
@@ -404,6 +423,7 @@ class cServer:
             except Exception as e:
                 print(str(e), file=stderr)
                 print("Error, can't send message to .\n\t" + str(client.get_socket()), file=stderr)
+                print("Error, can't send message to .\n\t" + str(client.get_socket()), file=stderr)
 
 
 
@@ -416,7 +436,7 @@ class cServer:
 
 if __name__ == "__main__":
     IP = socket.gethostname()   # "192.168.x.x"
-    PORT = "10004"
+    PORT = "10003"
     server = cServer(IP, PORT)  # Instance of cServer(host: str, port: int)
 
     # Initializes the server: bind and listen and returns True if all is OK

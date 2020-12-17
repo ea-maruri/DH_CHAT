@@ -144,6 +144,11 @@ class cClient:
         self.btn_connect_to_ip.grid(row=10, column=0)
         self.btn_connect_to_ip["state"] = tk.DISABLED
 
+        #Buttons
+        self.btn_diffie_hellman = tk.Button(self.top, text="Diffie Hellman", command=self.apply_dh)  # Send Button
+        self.btn_diffie_hellman.grid(row=10, column=1)
+        self.btn_diffie_hellman["state"] = tk.DISABLED
+
         self.top.mainloop() # Starts GUI execution.
 
         #Receiving thread
@@ -195,6 +200,7 @@ class cClient:
         self.combo_box_clients["state"] = tk.NORMAL
         self.btn_private_room["state"] = tk.NORMAL
         self.btn_connect_to_ip["state"] = tk.NORMAL
+        self.btn_diffie_hellman["state"] = tk.NORMAL
         self.host_entry["state"] = tk.DISABLED
         self.port_entry["state"] = tk.DISABLED
         self.name_entry["state"] = tk.DISABLED
@@ -230,6 +236,7 @@ class cClient:
         self.combo_box_clients["state"] = tk.DISABLED
         self.btn_private_room["state"] = tk.DISABLED
         self.btn_connect_to_ip["state"] = tk.DISABLED
+        self.btn_diffie_hellman["state"] = tk.DISABLED
         self.host_entry["state"] = tk.NORMAL
         self.port_entry["state"] = tk.NORMAL
         self.name_entry["state"] = tk.NORMAL
@@ -293,7 +300,7 @@ class cClient:
                             private_room_thread.start()
 
                         elif header == "RESPO":
-                            self.msg_list.insert(tk.END, received_message[:5])
+                            self.msg_list.insert(tk.END, received_message[5:])
 
                         elif header == "ERROR":
                             print("Error in Server")
@@ -312,6 +319,11 @@ class cClient:
 
     def connect_to_ip(self):
         self.client_socket.send(bytes("CONIP", encoding='utf-8'))
+
+
+    # apply diffie hellman
+    def apply_dh(self):
+        self.client_socket.send(bytes("KEYIN", encoding='utf-8'))
 
 
 
